@@ -1,5 +1,4 @@
 from openai import OpenAI
-from termcolor import colored
 import streamlit as st
 
 #ChatGPT setup
@@ -10,7 +9,7 @@ def gpt_set_client(key_loc = "/Users/metialex/my_applications/api_keys/openai.tx
     try:
         client = OpenAI(api_key=key_str)
     except:
-        print(colored('No internet connection'),'red')
+        st.write("Error with set up GPT client")
         client = False
     return client
 

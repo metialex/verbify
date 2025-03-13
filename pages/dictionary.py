@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-from util import capit,util_add_word
+from util import util_capit,util_add_word
 import pandas as pd
 
 if "logged_in" not in st.session_state:
@@ -57,7 +57,7 @@ if st.session_state["logged_in"]:
         else:
             st.warning("No record found with that name.")
 
-    if st.button("Show my dictionary"):
+    if st.button("Show/hide dictionary"):
         st.session_state.dict_show_button = not st.session_state.dict_show_button
     
     if st.session_state.dict_show_button:

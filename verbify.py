@@ -1,9 +1,6 @@
 import streamlit as st
 import os
-from termcolor import colored
 import time
-import argparse
-from tqdm import tqdm
 import util
 from gpt import gpt_generate_hint,gpt_set_client
 from openai import OpenAI
@@ -27,8 +24,8 @@ if st.session_state["logged_in"]:
         if st.session_state.orig_lang == "english": st.session_state.pract_lang = "german"
         elif st.session_state.orig_lang == "german": st.session_state.pract_lang = "english" 
     with col2: st.session_state.w_n = st.segmented_control("Number of words", [3, 20, 30],default=20,disabled=st.session_state.disabled)
-    with col3: st.session_state.acc = st.segmented_control("Accuracy (%)", [0, 50, 25],default=0,disabled=st.session_state.disabled)
-        
+    with col3: st.session_state.acc = st.segmented_control("Accuracy (%)", [100, 50, 20],default=50,disabled=st.session_state.disabled)
+
     if st.button("Start practice",disabled=st.session_state.disabled):
         st.session_state.exit_flag = False
         st.session_state.disabled = True
@@ -53,7 +50,10 @@ if st.session_state["logged_in"]:
 
         wrd_idx = st.session_state.idx_list[st.session_state.word_counter]
         
+        #Wrd gives a copy, while dictionary allows to access
+        #directly to the instance
         wrd = st.session_state.dictionary.iloc[wrd_idx]
+        dictionary = st.session_state.dictionary
         
         prompt = f"<span style='font-size: 20px;'>{wrd[orig_lang]}</span>"
         st.write( 'translate to ' + pract_lang + " - " + prompt, unsafe_allow_html=True)
@@ -83,23 +83,23 @@ if st.session_state["logged_in"]:
                 gpt_generate_hint(wrd,orig_lang)
             #Cases with writing word statistic
             elif my_word == "+":
-                wrd['learned'] = True
-                wrd['num_practiced'] += 1
+                dictionary.loc[wrd_idx,'learned'] = True
+                dictionary.loc[wrd_idx,'num_practiced'] += 1
                 st.session_state.word_counter += 1
                 st.write(f"<span style='color:green;'>Word {correct_string} is marked as known</span>", unsafe_allow_html=True)
                 time.sleep(1)
                 st.rerun()
             elif my_word == correct_string or util.util_capit(my_word) == correct_string:
-                wrd['num_practiced'] += 1
-                wrd['num_success'] += 1
-                wrd['last_success'] = 1
+                dictionary.loc[wrd_idx,'num_practiced'] += 1
+                dictionary.loc[wrd_idx,'num_success'] += 1
+                dictionary.loc[wrd_idx,'last_success'] = 1
                 st.session_state.word_counter += 1
                 st.write(f"<span style='color:green;'>Correct</span>", unsafe_allow_html=True)
                 time.sleep(1)
                 st.rerun()
             else:
-                wrd['num_practiced'] += 1
-                wrd['last_success'] = 0
+                dictionary.loc[wrd_idx,'num_practiced'] += 1
+                dictionary.loc[wrd_idx,'last_success'] = 0
                 st.session_state.word_counter += 1
                 st.session_state.idx_list.append(wrd_idx)
                 st.write(f"<span style='color:red;'>'Failed' + ' - ' + {correct_string}</span>", unsafe_allow_html=True)
@@ -120,6 +120,7 @@ if st.session_state["logged_in"]:
             if st.button("New run"):
                 st.session_state.exit_flag = False
                 st.session_state.disabled = False
+                st.session_state.dictionary.to_json('dict/dictionary.json', force_ascii=False)
                 st.rerun()
 
 else:
