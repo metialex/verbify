@@ -15,7 +15,7 @@ if st.session_state["logged_in"]:
     # Session state to track progress
 
     # Create four columns
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3,col4 = st.columns(4)
 
     # Place segmented controls in each column
     with col1: 
@@ -25,6 +25,7 @@ if st.session_state["logged_in"]:
         elif st.session_state.orig_lang == "german": st.session_state.pract_lang = "english" 
     with col2: st.session_state.w_n = st.segmented_control("Number of words", [3, 20, 30],default=20,disabled=st.session_state.disabled)
     with col3: st.session_state.acc = st.segmented_control("Accuracy (%)", [100, 50, 20],default=50,disabled=st.session_state.disabled)
+    with col4: st.session_state.learned = st.segmented_control("Learned", [False,True],default=False,disabled=st.session_state.disabled)
 
     if st.button("Start practice",disabled=st.session_state.disabled):
         st.session_state.exit_flag = False
@@ -36,7 +37,10 @@ if st.session_state["logged_in"]:
         for index, word in st.session_state.dictionary.sample(frac=1).iterrows():
             if len(st.session_state.idx_list) >= st.session_state.w_n: break
             word_accuracy = (word['num_success'] / word['num_practiced'] * 100) if word['num_practiced'] else 0.01
-            if word_accuracy >= st.session_state.acc: st.session_state.idx_list.append(index)
+            if word_accuracy >= st.session_state.acc:
+                if ((not st.session_state.learned and word["learned"] != True )
+                or st.session_state.learned):
+                    st.session_state.idx_list.append(index)
         st.rerun()
 
     if (st.session_state.disabled 
