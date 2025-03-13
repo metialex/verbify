@@ -1,0 +1,6 @@
+#Python related files
+__pycache__/
+pages/__pycache__
+
+#Idk what is this one
+.DS_Store
