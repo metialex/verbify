@@ -39,7 +39,7 @@ if st.session_state["logged_in"]:
 
     if name:
         # Find row matching the name
-        row = df[df["english"] == name]
+        row = df[df["english"].str.contains(name, na=False, case=False)]
 
         if not row.empty:
             st.write("Record Found. Edit Below:")
@@ -52,6 +52,7 @@ if st.session_state["logged_in"]:
             if st.button("Save Changes"):
                 df.loc[row_idx] = edited_data.iloc[0]  # Update only that row
                 st.session_state["df"] = df  # Store the updated DataFrame
+                st.session_state.dictionary.to_json('dict/dictionary.json', force_ascii=False)
                 st.success("Changes saved successfully!")
 
         else:
