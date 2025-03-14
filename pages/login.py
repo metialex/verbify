@@ -23,6 +23,8 @@ def login_section():
                 st.session_state.exit_flag = True
                 st.session_state.disabled = False
                 st.session_state.dict_show_button = False
+                st.session_state.prev_german_wrd = ""
+                st.session_state.eng_def = st.session_state.rus_def = st.session_state.type_def = st.session_state.art_def = ""
                 st.success(f"Welcome, {username}, your dictionary and GPT assistant configured!")
                 time.sleep(1)
                 st.rerun()  # Refresh the page

@@ -2,31 +2,47 @@ import streamlit as st
 import time
 from util import util_capit,util_add_word
 import pandas as pd
+from gpt import gpt_generate_word_by_german
 
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
 if st.session_state["logged_in"]:
+   
     st.title("Add a new word to the dictionary")
-    german_word = util_capit(st.text_input("German word:", ""))
-    english_word = st.text_input("English word:", "")
-    russian_word = st.text_input("Russian word:", "")
-    word_type = st.text_input("Word type:", "")
-    article = st.text_input("Article:", "")
-    tags = st.text_input("Tags: tag_1,tag_2,...").split(",")
-    if st.button("Add word"):
-        st.session_state.dictionary =util_add_word(german_word,
-                                                   english_word,
-                                                   article,
-                                                   russian_word,
-                                                   word_type,
-                                                   tags,
-                                                   st.session_state.dictionary)
-        
-        st.session_state.dictionary.to_json('dict/dictionary.json', force_ascii=False)
-        st.success(f"Word have been added!")
-        time.sleep(2)
-        st.rerun()
+    col1,col2 = st.columns(2)
+
+    with col1:
+        german_word = util_capit(st.text_input("German word:", "",placeholder = "Fill and press enter for GPT autofill"))
+        if german_word != "" and st.session_state.prev_german_wrd != german_word:
+            gpt_output = gpt_generate_word_by_german(german_word)
+            try:
+                if gpt_output.split(",")[0] != "x": st.session_state.eng_def = gpt_output.split(",")[0]
+                if gpt_output.split(",")[1] != "x": st.session_state.rus_def = gpt_output.split(",")[1]
+                if gpt_output.split(",")[2] != "x": st.session_state.type_def = gpt_output.split(",")[2]
+                if gpt_output.split(",")[3] != "x": st.session_state.art_def = gpt_output.split(",")[3]
+            except:
+                st.write("GPT output is with wrong format")
+        st.session_state.prev_german_wrd = german_word
+
+        english_word = st.text_input("English word:",st.session_state.eng_def)
+        russian_word = st.text_input("Russian word:", st.session_state.rus_def)
+        word_type = st.text_input("Word type:", st.session_state.type_def)
+        article = st.text_input("Article:", st.session_state.art_def)
+        tags = st.text_input("Tags: tag_1,tag_2,...").split(",")
+        if st.button("Add word"):
+            st.session_state.dictionary =util_add_word(german_word,
+                                                    english_word,
+                                                    article,
+                                                    russian_word,
+                                                    word_type,
+                                                    tags,
+                                                    st.session_state.dictionary)
+            
+            st.session_state.dictionary.to_json('dict/dictionary.json', force_ascii=False)
+            st.success(f"Word have been added!")
+            time.sleep(2)
+            st.rerun()
 
 
     #Search over dictionary by english word

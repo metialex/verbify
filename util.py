@@ -1,5 +1,6 @@
 import time
 from datetime import date
+import pandas as pd
 
 #Capitilize string
 def util_capit(a):
