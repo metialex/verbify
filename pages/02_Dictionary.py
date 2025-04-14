@@ -4,6 +4,8 @@ from util import util_capit,util_add_word
 import pandas as pd
 from gpt import gpt_generate_word_by_german
 
+st.set_page_config(page_title="Dictionary", page_icon="📙")
+
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
@@ -17,18 +19,17 @@ if st.session_state["logged_in"]:
         if german_word != "" and st.session_state.prev_german_wrd != german_word:
             gpt_output = gpt_generate_word_by_german(german_word)
             try:
-                if gpt_output.split(",")[0] != "x": st.session_state.eng_def = gpt_output.split(",")[0]
-                if gpt_output.split(",")[1] != "x": st.session_state.rus_def = gpt_output.split(",")[1]
-                if gpt_output.split(",")[2] != "x": st.session_state.type_def = gpt_output.split(",")[2]
-                if gpt_output.split(",")[3] != "x": st.session_state.art_def = gpt_output.split(",")[3]
+                #For each form prefilled with GPT
+                for i in range(4): 
+                    if gpt_output.split(",")[i] != "x": st.session_state.def_form_values[i] = gpt_output.split(",")[i]
             except:
                 st.write("GPT output is with wrong format")
         st.session_state.prev_german_wrd = german_word
 
-        english_word = st.text_input("English word:",st.session_state.eng_def)
-        russian_word = st.text_input("Russian word:", st.session_state.rus_def)
-        word_type = st.text_input("Word type:", st.session_state.type_def)
-        article = st.text_input("Article:", st.session_state.art_def)
+        english_word = st.text_input("English word:",st.session_state.def_form_values[0])
+        russian_word = st.text_input("Russian word:", st.session_state.def_form_values[1])
+        word_type = st.text_input("Word type:", st.session_state.def_form_values[2])
+        article = st.text_input("Article:", st.session_state.def_form_values[3])
         tags = st.text_input("Tags: tag_1,tag_2,...").split(",")
         if st.button("Add word"):
             st.session_state.dictionary =util_add_word(german_word,

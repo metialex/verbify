@@ -19,8 +19,7 @@ def gpt_generate_hint(wrd, orig_lang):
                     model="gpt-3.5-turbo",
                     store=True,
                     messages=[
-                        {"role": "user", "content": f"Provide a short sentence in {orig_lang} which" \
-                         "contain the word {wrd[orig_lang]}. Make this sentence within B1 level"}
+                        {"role": "user", "content": f"Provide a short sentence in {orig_lang} which contain the word {wrd[orig_lang]}. Make this sentence within B1 level"}
                     ]
                     )
         label = f"Example of usage - {completion.choices[0].message.content}"

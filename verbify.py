@@ -5,26 +5,25 @@ import util
 from gpt import gpt_generate_hint,gpt_set_client
 from openai import OpenAI
 import pandas as pd
-
-from pages.login import login_section
+from datetime import date
 
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
 if st.session_state["logged_in"]:
     # Session state to track progress
-
+    st.title("Start your training session here")
     # Create four columns
     col1, col2, col3,col4 = st.columns(4)
 
     # Place segmented controls in each column
     with col1: 
         st.session_state.pract_lang = "german"
-        st.session_state.orig_lang = st.segmented_control("Language", ["english", "german"],default="english",disabled=st.session_state.disabled)
+        st.session_state.orig_lang = st.segmented_control("Language", ["english", "german"],default="german",disabled=st.session_state.disabled)
         if st.session_state.orig_lang == "english": st.session_state.pract_lang = "german"
         elif st.session_state.orig_lang == "german": st.session_state.pract_lang = "english" 
-    with col2: st.session_state.w_n = st.segmented_control("Number of words", [3, 20, 30],default=20,disabled=st.session_state.disabled)
-    with col3: st.session_state.acc = st.segmented_control("Accuracy (%)", [100, 50, 20],default=50,disabled=st.session_state.disabled)
+    with col2: st.session_state.w_n = st.segmented_control("Number of words", [5, 10, 20],default=5,disabled=st.session_state.disabled)
+    with col3: st.session_state.acc = st.segmented_control("Accuracy (%)", [100, 50, 20],default=100,disabled=st.session_state.disabled)
     with col4: st.session_state.learned = st.segmented_control("Learned", [False,True],default=False,disabled=st.session_state.disabled)
 
     if st.button("Start practice",disabled=st.session_state.disabled):
@@ -37,7 +36,7 @@ if st.session_state["logged_in"]:
         for index, word in st.session_state.dictionary.sample(frac=1).iterrows():
             if len(st.session_state.idx_list) >= st.session_state.w_n: break
             word_accuracy = (word['num_success'] / word['num_practiced'] * 100) if word['num_practiced'] else 0.01
-            if word_accuracy >= st.session_state.acc:
+            if word_accuracy <= st.session_state.acc:
                 if ((not st.session_state.learned and word["learned"] != True )
                 or st.session_state.learned):
                     st.session_state.idx_list.append(index)
@@ -65,7 +64,7 @@ if st.session_state["logged_in"]:
         #Define the correct answer
         correct_string = wrd[pract_lang]
         if wrd['type'] == "Verb" and len(correct_string.split()) > 1:
-            correct_string = util.util_capit(correct_string.split()[1])
+            correct_string = util.util_capit(" ".join(correct_string.split()[1:]))
 
         was_correct = None
         with st.chat_message('user'):
@@ -78,8 +77,19 @@ if st.session_state["logged_in"]:
             if my_word == "0":
                 st.session_state.exit_flag = True
                 st.write("<span style='color:red;'>Stop the practice</span>", unsafe_allow_html=True)
-                time.sleep(3)
-                st.rerun()
+                st.session_state.word_counter = len(st.session_state.idx_list)
+                
+                #Statistic save
+                st.session_state.next_practice_idx += 1
+                stat_file_location = "statistic_data/user.pkl"
+                st.session_state.statistic.to_pickle(stat_file_location)
+
+                if st.button("New run"):
+                    st.session_state.exit_flag = False
+                    st.session_state.disabled = False
+                    st.session_state.dictionary.to_json('dict/dictionary.json', force_ascii=False)
+                    st.rerun()
+
             elif my_word == "1":
                 label = correct_string[0] + "*" * (len(correct_string)-2) + correct_string[-1]
                 st.write(label, unsafe_allow_html=True)
@@ -91,6 +101,13 @@ if st.session_state["logged_in"]:
                 dictionary.loc[wrd_idx,'num_practiced'] += 1
                 st.session_state.word_counter += 1
                 st.write(f"<span style='color:green;'>Word {correct_string} is marked as known</span>", unsafe_allow_html=True)
+                #Collect statistic
+                stat_out =  pd.DataFrame({"idx":[st.session_state.next_practice_idx],
+                            "date":[date.today().strftime("%d/%m/%Y")],
+                            "word":[wrd_idx],
+                            "success":[True],
+                            "learned":[True]})
+                st.session_state.statistic = pd.concat([st.session_state.statistic,stat_out], ignore_index=True)
                 time.sleep(1)
                 st.rerun()
             elif my_word == correct_string or util.util_capit(my_word) == correct_string:
@@ -99,6 +116,14 @@ if st.session_state["logged_in"]:
                 dictionary.loc[wrd_idx,'last_success'] = 1
                 st.session_state.word_counter += 1
                 st.write(f"<span style='color:green;'>Correct</span>", unsafe_allow_html=True)
+
+                #Collect statistic
+                stat_out = pd.DataFrame({"idx":[st.session_state.next_practice_idx],
+                            "date":[date.today().strftime("%d/%m/%Y")],
+                            "word":[wrd_idx],
+                            "success":[True],
+                            "learned":[False]})
+                st.session_state.statistic = pd.concat([st.session_state.statistic,stat_out], ignore_index=True)
                 time.sleep(1)
                 st.rerun()
             else:
@@ -106,6 +131,14 @@ if st.session_state["logged_in"]:
                 dictionary.loc[wrd_idx,'last_success'] = 0
                 st.session_state.word_counter += 1
                 st.session_state.idx_list.append(wrd_idx)
+
+                #Collect statistic
+                stat_out = pd.DataFrame({"idx":[st.session_state.next_practice_idx],
+                            "date":[date.today().strftime("%d/%m/%Y")],
+                            "word":[wrd_idx],
+                            "success":[False],
+                            "learned":[False]})
+                st.session_state.statistic = pd.concat([st.session_state.statistic,stat_out], ignore_index=True)
                 st.write(f"<span style='color:red;'>'Failed' + ' - ' + {correct_string}</span>", unsafe_allow_html=True)
                 time.sleep(1)
                 st.rerun()
@@ -121,6 +154,12 @@ if st.session_state["logged_in"]:
     if "word_counter" in st.session_state:
         if st.session_state.word_counter == len(st.session_state.idx_list):
             st.success("Test Finished!")
+
+            #Statistic save
+            st.session_state.next_practice_idx += 1
+            stat_file_location = "statistic_data/user.pkl"
+            st.session_state.statistic.to_pickle(stat_file_location)
+
             if st.button("New run"):
                 st.session_state.exit_flag = False
                 st.session_state.disabled = False
@@ -128,5 +167,4 @@ if st.session_state["logged_in"]:
                 st.rerun()
 
 else:
-    col1, col2, col3 = st.columns(3)
-    with col2: login_section()
+    st.write("Please, login")

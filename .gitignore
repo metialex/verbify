@@ -7,3 +7,6 @@ dict/*
 
 #Idk what is this one
 .DS_Store
+
+#test files
+plot.py
