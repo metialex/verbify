@@ -1,9 +1,11 @@
-#Python related files
+# Python related files
 __pycache__/
 pages/__pycache__
+.venv
 
-#User-related files
-dict/*
-
-#Idk what is this one
+# Idk what is this one
 .DS_Store
+
+# IDE
+.idea
+.vscode

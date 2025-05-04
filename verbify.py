@@ -1,132 +1,75 @@
 import streamlit as st
-import os
-import time
-import util
-from gpt import gpt_generate_hint,gpt_set_client
-from openai import OpenAI
-import pandas as pd
 
-from pages.login import login_section
+from core.utils import check_login, signup
+
 
 if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
+    st.session_state.logged_in = False
 
-if st.session_state["logged_in"]:
-    # Session state to track progress
+def login():
+    st.title('Welcome to :violet[Verbify]')
+    choice = st.selectbox('Login/Signup', ('Login', 'Sign Up'))
+    if choice == 'Login':
+        username = st.text_input(
+            label='Username',
+            label_visibility='collapsed',
+            value='',
+            placeholder='Enter your username')
+        password = st.text_input(
+            label='Password',
+            label_visibility='collapsed',
+            value='',
+            placeholder='Enter password',
+            type='password')
+        st.button('Login', type='primary', on_click=logged_in_clicked, args=(username, password))
+    else:
+        username = st.text_input(
+            label='Username',
+            label_visibility='collapsed',
+            value='',
+            placeholder='Enter unique username')
+        password = st.text_input(
+            label='Password',
+            label_visibility='collapsed',
+            value='',
+            placeholder='Create password',
+            type='password')
+        st.button('Create my account', type='primary', on_click=sign_up_clicked, args=(username, password))
 
-    # Create four columns
-    col1, col2, col3,col4 = st.columns(4)
+def logout():
+    st.session_state.logged_in = False
+    st.rerun()
 
-    # Place segmented controls in each column
-    with col1: 
-        st.session_state.pract_lang = "german"
-        st.session_state.orig_lang = st.segmented_control("Language", ["english", "german"],default="english",disabled=st.session_state.disabled)
-        if st.session_state.orig_lang == "english": st.session_state.pract_lang = "german"
-        elif st.session_state.orig_lang == "german": st.session_state.pract_lang = "english" 
-    with col2: st.session_state.w_n = st.segmented_control("Number of words", [3, 20, 30],default=20,disabled=st.session_state.disabled)
-    with col3: st.session_state.acc = st.segmented_control("Accuracy (%)", [100, 50, 20],default=50,disabled=st.session_state.disabled)
-    with col4: st.session_state.learned = st.segmented_control("Learned", [False,True],default=False,disabled=st.session_state.disabled)
+def sign_up_clicked(username, password):
+    if signup(username, password):
+        st.session_state['logged_in'] = True
+    else:
+        st.error("This username already used")
 
-    if st.button("Start practice",disabled=st.session_state.disabled):
-        st.session_state.exit_flag = False
-        st.session_state.disabled = True
-        st.session_state.idx_list = []
-        st.session_state.word_counter = 0
+def logged_in_clicked(username, password):
+    if check_login(username, password):
+        st.toast(f'Hello, {username}!', icon='😍')
+        st.session_state['logged_in'] = True
+    else:
+        st.error("Invalid username or password")
 
-        #Read the dictionary and prepare the list of words
-        for index, word in st.session_state.dictionary.sample(frac=1).iterrows():
-            if len(st.session_state.idx_list) >= st.session_state.w_n: break
-            word_accuracy = (word['num_success'] / word['num_practiced'] * 100) if word['num_practiced'] else 0.01
-            if word_accuracy >= st.session_state.acc:
-                if ((not st.session_state.learned and word["learned"] != True )
-                or st.session_state.learned):
-                    st.session_state.idx_list.append(index)
-        st.rerun()
+login_page = st.Page(page=login)
+logout_page = st.Page(page=logout, title="Log out", icon=":material/logout:")
+settings_page = st.Page(page="pages/settings.py", title="Settings", icon=":material/settings:")
+training_page = st.Page(
+    page="pages/training.py",
+    title="Training",
+    default=True
+)
+dictionary_page = st.Page(page="pages/dictionary.py", title="Dictionary")
+statistic_page = st.Page(page="pages/statistic.py", title="Statistic")
 
-    if (st.session_state.disabled 
-        and st.session_state.word_counter < len(st.session_state.idx_list) 
-        and st.session_state.exit_flag != True):
+account_pages = [logout_page, settings_page]
+verbify_pages = [training_page, dictionary_page, statistic_page]
 
-        st.write(st.session_state.word_counter)
-
-        pract_lang = st.session_state.pract_lang
-        orig_lang = st.session_state.orig_lang
-
-        wrd_idx = st.session_state.idx_list[st.session_state.word_counter]
-        
-        #Wrd gives a copy, while dictionary allows to access
-        #directly to the instance
-        wrd = st.session_state.dictionary.iloc[wrd_idx]
-        dictionary = st.session_state.dictionary
-        
-        prompt = f"<span style='font-size: 20px;'>{wrd[orig_lang]}</span>"
-        st.write( 'translate to ' + pract_lang + " - " + prompt, unsafe_allow_html=True)
-        
-        #Define the correct answer
-        correct_string = wrd[pract_lang]
-        if wrd['type'] == "Verb" and len(correct_string.split()) > 1:
-            correct_string = util.util_capit(correct_string.split()[1])
-
-        was_correct = None
-        with st.chat_message('user'):
-            my_word = st.chat_input("Enter your word")
-
-        if my_word is None:
-            st.write("The hint will be visible here")
-        else:
-            #Cases without additional action
-            if my_word == "0":
-                st.session_state.exit_flag = True
-                st.write("<span style='color:red;'>Stop the practice</span>", unsafe_allow_html=True)
-                time.sleep(3)
-                st.rerun()
-            elif my_word == "1":
-                label = correct_string[0] + "*" * (len(correct_string)-2) + correct_string[-1]
-                st.write(label, unsafe_allow_html=True)
-            elif my_word == "2":
-                gpt_generate_hint(wrd,orig_lang)
-            #Cases with writing word statistic
-            elif my_word == "+":
-                dictionary.loc[wrd_idx,'learned'] = True
-                dictionary.loc[wrd_idx,'num_practiced'] += 1
-                st.session_state.word_counter += 1
-                st.write(f"<span style='color:green;'>Word {correct_string} is marked as known</span>", unsafe_allow_html=True)
-                time.sleep(1)
-                st.rerun()
-            elif my_word == correct_string or util.util_capit(my_word) == correct_string:
-                dictionary.loc[wrd_idx,'num_practiced'] += 1
-                dictionary.loc[wrd_idx,'num_success'] += 1
-                dictionary.loc[wrd_idx,'last_success'] = 1
-                st.session_state.word_counter += 1
-                st.write(f"<span style='color:green;'>Correct</span>", unsafe_allow_html=True)
-                time.sleep(1)
-                st.rerun()
-            else:
-                dictionary.loc[wrd_idx,'num_practiced'] += 1
-                dictionary.loc[wrd_idx,'last_success'] = 0
-                st.session_state.word_counter += 1
-                st.session_state.idx_list.append(wrd_idx)
-                st.write(f"<span style='color:red;'>'Failed' + ' - ' + {correct_string}</span>", unsafe_allow_html=True)
-                time.sleep(1)
-                st.rerun()
-        
-        st.markdown("""
-            <div class="custom-text"><span style="white-space:pre-line;">1 - gives an amount of letters in word  
-            2 - gives a GPT generated example  
-            '+' - marks word as learned  
-            </span>
-        """, unsafe_allow_html=True)
-    
-    #Restart the test
-    if "word_counter" in st.session_state:
-        if st.session_state.word_counter == len(st.session_state.idx_list):
-            st.success("Test Finished!")
-            if st.button("New run"):
-                st.session_state.exit_flag = False
-                st.session_state.disabled = False
-                st.session_state.dictionary.to_json('dict/dictionary.json', force_ascii=False)
-                st.rerun()
-
+if st.session_state.logged_in:
+    pg = st.navigation(pages={"Account": account_pages, "Verbify": verbify_pages})
 else:
-    col1, col2, col3 = st.columns(3)
-    with col2: login_section()
+    pg = st.navigation(pages=[login_page])
+
+pg.run()

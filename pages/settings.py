@@ -1,5 +1,5 @@
 import streamlit as st
 
 
-st.title("Statistic")
+st.title("Settings")
 st.write("As soon as possible")
